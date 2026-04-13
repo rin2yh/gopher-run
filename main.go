@@ -7,11 +7,12 @@ import (
 	"image/color"
 	"image/png"
 	"log"
-	"math/rand"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
-	"github.com/hajimehoshi/ebiten/v2/inpututil"
+
+	"gopher-run/internal/input"
+	"gopher-run/internal/world"
 )
 
 const (
@@ -35,12 +36,6 @@ const (
 	ModeGameOver
 )
 
-type Segment struct {
-	X      int
-	Width  int
-	IsHole bool
-}
-
 type Game struct {
 	mode       Mode
 	score      int
@@ -48,7 +43,7 @@ type Game struct {
 	gopherY16  int
 	gopherVY16 int
 	jumpFrames int
-	segments   []Segment
+	world      *world.World
 }
 
 var (
@@ -89,84 +84,25 @@ func init() {
 	dirtImage.Fill(color.RGBA{uint8(dr >> 8), uint8(dg >> 8), uint8(db >> 8), 0xFF})
 }
 
-func isJustPressed() bool {
-	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
-		return true
-	}
-	if inpututil.IsMouseButtonJustPressed(ebiten.MouseButtonLeft) {
-		return true
-	}
-	return len(inpututil.AppendJustPressedTouchIDs(nil)) > 0
-}
-
-func isInputHeld() bool {
-	if ebiten.IsKeyPressed(ebiten.KeySpace) {
-		return true
-	}
-	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
-		return true
-	}
-	return len(ebiten.AppendTouchIDs(nil)) > 0
-}
-
 func (g *Game) reset() {
 	g.score = 0
 	g.cameraX = 0
 	g.gopherY16 = (groundY - gopherHeight) * 16
 	g.gopherVY16 = 0
 	g.jumpFrames = 0
-	g.segments = []Segment{
-		{X: 0, Width: 400, IsHole: false},
-	}
-	g.fillSegments()
-}
-
-func (g *Game) fillSegments() {
-	rightX := 0
-	if n := len(g.segments); n > 0 {
-		last := g.segments[n-1]
-		rightX = last.X + last.Width
-	}
-	for rightX < g.cameraX+screenWidth+400 {
-		seg := Segment{X: rightX}
-		if rand.Intn(3) == 0 {
-			seg.IsHole = true
-			seg.Width = 40 + rand.Intn(21)
-		} else {
-			seg.Width = 200 + rand.Intn(201)
-		}
-		g.segments = append(g.segments, seg)
-		rightX += seg.Width
-	}
-}
-
-func (g *Game) pruneSegments() {
-	cutoff := g.cameraX - 200
-	i := 0
-	for i < len(g.segments) && g.segments[i].X+g.segments[i].Width < cutoff {
-		i++
-	}
-	g.segments = g.segments[i:]
-}
-
-func (g *Game) isGroundAt(worldX int) bool {
-	for _, s := range g.segments {
-		if !s.IsHole && worldX >= s.X && worldX < s.X+s.Width {
-			return true
-		}
-	}
-	return false
+	g.world = world.New()
+	g.world.Fill(g.cameraX, screenWidth)
 }
 
 // 後ろ足（左端）基準: 前半分が穴に掛かっていても接地でき、着地も自然に見える
 func (g *Game) isOverGround() bool {
-	return g.isGroundAt(gopherScreenX + g.cameraX)
+	return g.world.IsGroundAt(gopherScreenX + g.cameraX)
 }
 
 func (g *Game) Update() error {
 	switch g.mode {
 	case ModeTitle:
-		if isJustPressed() {
+		if input.IsJustPressed() {
 			g.mode = ModePlaying
 		}
 
@@ -174,7 +110,7 @@ func (g *Game) Update() error {
 		g.score++
 		g.cameraX += 2
 
-		if isJustPressed() {
+		if input.IsJustPressed() {
 			onGround := g.gopherY16 >= (groundY-gopherHeight)*16
 			if onGround && g.isOverGround() {
 				g.gopherVY16 = minJumpVY
@@ -182,7 +118,7 @@ func (g *Game) Update() error {
 			}
 		}
 
-		if g.jumpFrames > 0 && g.jumpFrames <= maxJumpFrames && isInputHeld() {
+		if g.jumpFrames > 0 && g.jumpFrames <= maxJumpFrames && input.IsHeld() {
 			g.gopherVY16 -= 4
 			g.jumpFrames++
 		} else {
@@ -207,11 +143,11 @@ func (g *Game) Update() error {
 			g.mode = ModeGameOver
 		}
 
-		g.pruneSegments()
-		g.fillSegments()
+		g.world.Prune(g.cameraX)
+		g.world.Fill(g.cameraX, screenWidth)
 
 	case ModeGameOver:
-		if isJustPressed() {
+		if input.IsJustPressed() {
 			g.reset()
 			g.mode = ModeTitle
 		}
@@ -223,7 +159,7 @@ func (g *Game) drawGround(screen *ebiten.Image) {
 	const fillH = float64(screenHeight - groundY - tileSize)
 
 	op := &ebiten.DrawImageOptions{}
-	for _, s := range g.segments {
+	for _, s := range g.world.Segments {
 		if s.IsHole {
 			continue
 		}
