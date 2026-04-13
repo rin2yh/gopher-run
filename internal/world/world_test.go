@@ -1,0 +1,111 @@
+package world
+
+import (
+	"testing"
+)
+
+func TestFloorDiv(t *testing.T) {
+	cases := []struct {
+		name       string
+		x, y, want int
+	}{
+		{"正の整数を割り切れない数で割ると商を切り捨てる", 10, 3, 3},
+		{"負の被除数が割り切れないとき数学的floorを返す", -10, 3, -4},
+		{"負の被除数が割り切れるとき商をそのまま返す", -9, 3, -3},
+		{"被除数が0のとき0を返す", 0, 3, 0},
+		{"正の整数が割り切れるとき商を返す", 9, 3, 3},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := floorDiv(c.x, c.y)
+			if got != c.want {
+				t.Errorf("floorDiv(%d, %d) = %d, want %d", c.x, c.y, got, c.want)
+			}
+		})
+	}
+}
+
+func TestNew(t *testing.T) {
+	w := New()
+	if len(w.Segments) != 1 {
+		t.Fatalf("len(Segments) = %d, want 1", len(w.Segments))
+	}
+	s := w.Segments[0]
+	if s.X != 0 || s.Width != 400 || s.IsHole {
+		t.Errorf("Segments[0] = %+v, want {X:0 Width:400 IsHole:false}", s)
+	}
+}
+
+func TestIsGroundAt(t *testing.T) {
+	w := &World{
+		Segments: []Segment{
+			{X: 100, Width: 200, IsHole: false},
+			{X: 300, Width: 50, IsHole: true},
+		},
+	}
+
+	cases := []struct {
+		name   string
+		worldX int
+		want   bool
+	}{
+		{"セグメント左端にいるとき地面と判定する", 100, true},
+		{"セグメント右端の1手前にいるとき地面と判定する", 299, true},
+		{"セグメント右端（半開区間）にいるとき地面と判定しない", 300, false},
+		{"セグメント左端の1手前にいるとき地面と判定しない", 99, false},
+		{"穴のセグメント内にいるとき地面と判定しない", 350, false},
+		{"全セグメント外にいるとき地面と判定しない", 500, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			got := w.IsGroundAt(c.worldX)
+			if got != c.want {
+				t.Errorf("IsGroundAt(%d) = %v, want %v", c.worldX, got, c.want)
+			}
+		})
+	}
+}
+
+func TestPrune(t *testing.T) {
+	w := &World{
+		Segments: []Segment{
+			{X: 0, Width: 100},
+			{X: 100, Width: 100},
+			{X: 200, Width: 100},
+		},
+	}
+	w.Prune(400)
+
+	if len(w.Segments) != 2 {
+		t.Fatalf("len(Segments) = %d, want 2", len(w.Segments))
+	}
+	if w.Segments[0].X != 100 {
+		t.Errorf("Segments[0].X = %d, want 100", w.Segments[0].X)
+	}
+	if w.Segments[1].X != 200 {
+		t.Errorf("Segments[1].X = %d, want 200", w.Segments[1].X)
+	}
+}
+
+func TestFill(t *testing.T) {
+	w := New()
+	initialLen := len(w.Segments)
+
+	w.Fill(0, 640)
+
+	if len(w.Segments) <= initialLen {
+		t.Fatal("Fill後にセグメントが追加されていない")
+	}
+
+	for i, s := range w.Segments {
+		if s.Width <= 0 {
+			t.Errorf("Segments[%d].Width = %d, want > 0", i, s.Width)
+		}
+		if i > 0 {
+			prev := w.Segments[i-1]
+			if s.X != prev.X+prev.Width {
+				t.Errorf("Segments[%d].X = %d, want %d (連続していない)", i, s.X, prev.X+prev.Width)
+			}
+		}
+	}
+}
