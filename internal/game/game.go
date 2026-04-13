@@ -18,14 +18,6 @@ const (
 	TileSize     = 32
 )
 
-const (
-	groundY       = 320
-	gopherScreenX = 80
-	gopherHeight  = 75
-	minJumpVY     = -80
-	maxJumpFrames = 15
-)
-
 type Mode int
 
 const (
@@ -38,9 +30,7 @@ type Game struct {
 	mode           Mode
 	score          int
 	cameraX        int
-	gopherY16      int
-	gopherVY16     int
-	jumpFrames     int
+	player         Player
 	world          *world.World
 	gopherImage    *ebiten.Image
 	dirtImage      *ebiten.Image
@@ -73,16 +63,9 @@ func floorMod(x, y int) int {
 func (g *Game) reset() {
 	g.score = 0
 	g.cameraX = 0
-	g.gopherY16 = (groundY - gopherHeight) * 16
-	g.gopherVY16 = 0
-	g.jumpFrames = 0
+	g.player.Reset()
 	g.world = world.New()
 	g.world.Fill(g.cameraX, ScreenWidth)
-}
-
-// 後ろ足（左端）基準: 前半分が穴に掛かっていても接地でき、着地も自然に見える
-func (g *Game) isOverGround() bool {
-	return g.world.IsGroundAt(gopherScreenX + g.cameraX)
 }
 
 func (g *Game) Update() error {
@@ -96,36 +79,8 @@ func (g *Game) Update() error {
 		g.score++
 		g.cameraX += 2
 
-		if input.IsJustPressed() {
-			onGround := g.gopherY16 >= (groundY-gopherHeight)*16
-			if onGround && g.isOverGround() {
-				g.gopherVY16 = minJumpVY
-				g.jumpFrames = 1
-			}
-		}
-
-		if g.jumpFrames > 0 && g.jumpFrames <= maxJumpFrames && input.IsHeld() {
-			g.gopherVY16 -= 4
-			g.jumpFrames++
-		} else {
-			g.jumpFrames = 0
-		}
-
-		g.gopherVY16 += 4
-		if g.gopherVY16 > 128 {
-			g.gopherVY16 = 128
-		}
-		g.gopherY16 += g.gopherVY16
-
-		if g.isOverGround() {
-			groundY16 := (groundY - gopherHeight) * 16
-			if g.gopherY16 >= groundY16 {
-				g.gopherY16 = groundY16
-				g.gopherVY16 = 0
-			}
-		}
-
-		if g.gopherY16/16 > ScreenHeight {
+		g.player.Update(g.world, g.cameraX)
+		if g.player.IsFallen(ScreenHeight) {
 			g.mode = ModeGameOver
 		}
 
@@ -196,13 +151,7 @@ func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
 	g.drawGround(screen)
 
-	gy := g.gopherY16 / 16
-	if g.mode == ModeTitle {
-		gy = groundY - gopherHeight
-	}
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(gopherScreenX), float64(gy))
-	screen.DrawImage(g.gopherImage, op)
+	g.player.Draw(screen, g.gopherImage, g.mode == ModeTitle)
 
 	switch g.mode {
 	case ModeTitle:
