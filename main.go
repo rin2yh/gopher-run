@@ -220,26 +220,53 @@ func (g *Game) Update() error {
 }
 
 func (g *Game) drawGround(screen *ebiten.Image) {
-	const nx = screenWidth/tileSize + 3
 	const fillH = float64(screenHeight - groundY - tileSize)
 
 	op := &ebiten.DrawImageOptions{}
-	for col := -1; col < nx; col++ {
-		worldTileCenterX := (floorDiv(g.cameraX, tileSize)+col)*tileSize + tileSize/2
-		if !g.isGroundAt(worldTileCenterX) {
+	for _, s := range g.segments {
+		if s.IsHole {
+			continue
+		}
+		if s.X+s.Width-g.cameraX <= 0 || s.X-g.cameraX >= screenWidth {
 			continue
 		}
 
-		screenTileX := float64(col*tileSize - floorMod(g.cameraX, tileSize))
+		// ワールド座標でタイル位置を計算し、セグメント境界でクリップ
+		firstWorldTileX := floorDiv(s.X, tileSize) * tileSize
+		lastWorldTileX := floorDiv(s.X+s.Width-1, tileSize) * tileSize
 
-		op.GeoM.Reset()
-		op.GeoM.Translate(screenTileX, float64(groundY))
-		screen.DrawImage(grassTileImage, op)
+		for worldTileX := firstWorldTileX; worldTileX <= lastWorldTileX; worldTileX += tileSize {
+			screenTileX := worldTileX - g.cameraX
+			if screenTileX+tileSize <= 0 || screenTileX >= screenWidth {
+				continue
+			}
 
-		op.GeoM.Reset()
-		op.GeoM.Scale(float64(tileSize), fillH)
-		op.GeoM.Translate(screenTileX, float64(groundY+tileSize))
-		screen.DrawImage(dirtImage, op)
+			// セグメント境界でクリップ（ワールド座標）
+			clippedLeft := worldTileX
+			if clippedLeft < s.X {
+				clippedLeft = s.X
+			}
+			clippedRight := worldTileX + tileSize
+			if clippedRight > s.X+s.Width {
+				clippedRight = s.X + s.Width
+			}
+			srcStartX := clippedLeft - worldTileX
+			srcEndX := clippedRight - worldTileX
+			if srcEndX <= srcStartX {
+				continue
+			}
+			drawX := float64(clippedLeft - g.cameraX)
+			tileW := clippedRight - clippedLeft
+
+			op.GeoM.Reset()
+			op.GeoM.Translate(drawX, float64(groundY))
+			screen.DrawImage(grassTileImage.SubImage(image.Rect(srcStartX, 0, srcEndX, tileSize)).(*ebiten.Image), op)
+
+			op.GeoM.Reset()
+			op.GeoM.Scale(float64(tileW), fillH)
+			op.GeoM.Translate(drawX, float64(groundY+tileSize))
+			screen.DrawImage(dirtImage, op)
+		}
 	}
 }
 
