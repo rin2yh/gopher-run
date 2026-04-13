@@ -5,7 +5,11 @@ import (
 	"github.com/hajimehoshi/ebiten/v2/inpututil"
 )
 
-func IsJustPressed() bool {
+type Handler struct{}
+
+func NewHandler() *Handler { return &Handler{} }
+
+func (h *Handler) IsJustPressed() bool {
 	if inpututil.IsKeyJustPressed(ebiten.KeySpace) {
 		return true
 	}
@@ -15,7 +19,7 @@ func IsJustPressed() bool {
 	return len(inpututil.AppendJustPressedTouchIDs(nil)) > 0
 }
 
-func IsHeld() bool {
+func (h *Handler) IsHeld() bool {
 	if ebiten.IsKeyPressed(ebiten.KeySpace) {
 		return true
 	}
