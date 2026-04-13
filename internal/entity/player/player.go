@@ -10,59 +10,70 @@ import (
 const (
 	GroundY = 320
 	ScreenX = 80
+	Width   = 60
 	Height  = 75
 )
 
 const (
 	minJumpVY     = -80
+	jumpBoost     = 4
 	maxJumpFrames = 15
+	gravity       = 4
+	maxFallVY     = 128
+	groundY16     = (GroundY - Height) * 16
 )
 
 type Player struct {
 	y16        int
 	vy16       int
 	jumpFrames int
+	isFalling     bool
 }
 
 func (p *Player) Reset() {
-	p.y16 = (GroundY - Height) * 16
+	p.y16 = groundY16
 	p.vy16 = 0
 	p.jumpFrames = 0
+	p.isFalling = false
 }
 
-// 後ろ足（左端）基準: 前半分が穴に掛かっていても接地でき、着地も自然に見える
 func (p *Player) isOverGround(w *world.World, cameraX int) bool {
-	return w.IsGroundAt(ScreenX + cameraX)
+	return w.IsGroundAt(ScreenX+cameraX) || w.IsGroundAt(ScreenX+Width-1+cameraX)
 }
 
 func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
+	overGround := p.isOverGround(w, cameraX)
+
 	if h.IsJustPressed() {
-		onGround := p.y16 >= (GroundY-Height)*16
-		if onGround && p.isOverGround(w, cameraX) {
+		onGround := p.y16 >= groundY16
+		if onGround && overGround {
 			p.vy16 = minJumpVY
 			p.jumpFrames = 1
 		}
 	}
 
 	if p.jumpFrames > 0 && p.jumpFrames <= maxJumpFrames && h.IsHeld() {
-		p.vy16 -= 4
+		p.vy16 -= jumpBoost
 		p.jumpFrames++
 	} else {
 		p.jumpFrames = 0
 	}
 
-	p.vy16 += 4
-	if p.vy16 > 128 {
-		p.vy16 = 128
+	p.vy16 += gravity
+	if p.vy16 > maxFallVY {
+		p.vy16 = maxFallVY
 	}
 	p.y16 += p.vy16
 
-	if p.isOverGround(w, cameraX) {
-		groundY16 := (GroundY - Height) * 16
-		if p.y16 >= groundY16 {
-			p.y16 = groundY16
-			p.vy16 = 0
-		}
+	fallingIntoHole := !overGround && p.y16 > groundY16
+	if fallingIntoHole {
+		p.isFalling = true
+	}
+
+	canLand := !p.isFalling && overGround
+	if canLand && p.y16 >= groundY16 {
+		p.y16 = groundY16
+		p.vy16 = 0
 	}
 }
 
