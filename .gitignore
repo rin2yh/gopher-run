@@ -12,3 +12,6 @@ go.work.sum
 !dummy.fxc
 *.metallib
 !dummy.metallib
+
+docs/gopher-run.wasm
+docs/wasm_exec.js
