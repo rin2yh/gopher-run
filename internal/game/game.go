@@ -2,7 +2,6 @@ package game
 
 import (
 	"fmt"
-	"image"
 	"image/color"
 
 	"github.com/hajimehoshi/ebiten/v2"
@@ -48,18 +47,6 @@ func New(gopherImg, dirtImg, grassTileImg *ebiten.Image) *Game {
 	return g
 }
 
-func floorDiv(x, y int) int {
-	d := x / y
-	if d*y == x || x >= 0 {
-		return d
-	}
-	return d - 1
-}
-
-func floorMod(x, y int) int {
-	return x - floorDiv(x, y)*y
-}
-
 func (g *Game) reset() {
 	g.score = 0
 	g.cameraX = 0
@@ -96,60 +83,15 @@ func (g *Game) Update() error {
 	return nil
 }
 
-func (g *Game) drawGround(screen *ebiten.Image) {
-	const fillH = float64(ScreenHeight - groundY - TileSize)
-
-	op := &ebiten.DrawImageOptions{}
-	for _, s := range g.world.Segments {
-		if s.IsHole {
-			continue
-		}
-		if s.X+s.Width-g.cameraX <= 0 || s.X-g.cameraX >= ScreenWidth {
-			continue
-		}
-
-		// ワールド座標でタイル位置を計算し、セグメント境界でクリップ
-		firstWorldTileX := floorDiv(s.X, TileSize) * TileSize
-		lastWorldTileX := floorDiv(s.X+s.Width-1, TileSize) * TileSize
-
-		for worldTileX := firstWorldTileX; worldTileX <= lastWorldTileX; worldTileX += TileSize {
-			screenTileX := worldTileX - g.cameraX
-			if screenTileX+TileSize <= 0 || screenTileX >= ScreenWidth {
-				continue
-			}
-
-			// セグメント境界でクリップ（ワールド座標）
-			clippedLeft := worldTileX
-			if clippedLeft < s.X {
-				clippedLeft = s.X
-			}
-			clippedRight := worldTileX + TileSize
-			if clippedRight > s.X+s.Width {
-				clippedRight = s.X + s.Width
-			}
-			srcStartX := clippedLeft - worldTileX
-			srcEndX := clippedRight - worldTileX
-			if srcEndX <= srcStartX {
-				continue
-			}
-			drawX := float64(clippedLeft - g.cameraX)
-			tileW := clippedRight - clippedLeft
-
-			op.GeoM.Reset()
-			op.GeoM.Translate(drawX, float64(groundY))
-			screen.DrawImage(g.grassTileImage.SubImage(image.Rect(srcStartX, 0, srcEndX, TileSize)).(*ebiten.Image), op)
-
-			op.GeoM.Reset()
-			op.GeoM.Scale(float64(tileW), fillH)
-			op.GeoM.Translate(drawX, float64(groundY+TileSize))
-			screen.DrawImage(g.dirtImage, op)
-		}
-	}
-}
-
 func (g *Game) Draw(screen *ebiten.Image) {
 	screen.Fill(color.RGBA{0x80, 0xa0, 0xc0, 0xff})
-	g.drawGround(screen)
+	g.world.Draw(screen, world.DrawParams{
+		CameraX:     g.cameraX,
+		ScreenWidth: ScreenWidth,
+		GroundY:     groundY,
+		TileSize:    TileSize,
+		FillHeight:  float64(ScreenHeight - groundY - TileSize),
+	}, g.grassTileImage, g.dirtImage)
 
 	g.player.Draw(screen, g.gopherImage, g.mode == ModeTitle)
 
