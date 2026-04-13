@@ -12,6 +12,11 @@ import (
 	"gopher-run/internal/game"
 )
 
+const (
+	screenWidth  = 800
+	screenHeight = 400
+)
+
 var (
 	gopherImage    *ebiten.Image
 	dirtImage      *ebiten.Image
@@ -38,7 +43,7 @@ func init() {
 }
 
 func main() {
-	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
+	ebiten.SetWindowSize(screenWidth, screenHeight)
 	ebiten.SetWindowTitle("Gopher Run")
 	g := game.New(gopherImage, dirtImage, grassTileImage)
 	if err := ebiten.RunGame(g); err != nil {

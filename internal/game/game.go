@@ -13,9 +13,7 @@ import (
 )
 
 const (
-	ScreenWidth  = 800
-	ScreenHeight = 400
-	TileSize     = 32
+	TileSize = 32
 )
 
 const (
@@ -29,7 +27,7 @@ const (
 type Mode int
 
 const (
-	ModeTitle   Mode = iota
+	ModeTitle Mode = iota
 	ModePlaying
 	ModeGameOver
 )
