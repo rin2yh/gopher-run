@@ -22,6 +22,9 @@ const (
 
 	gopherScreenX = 80
 	gopherHeight  = 75
+
+	minJumpVY     = -80
+	maxJumpFrames = 15
 )
 
 type Mode int
@@ -44,6 +47,7 @@ type Game struct {
 	cameraX    int
 	gopherY16  int
 	gopherVY16 int
+	jumpFrames int
 	segments   []Segment
 }
 
@@ -95,11 +99,22 @@ func isJustPressed() bool {
 	return len(inpututil.AppendJustPressedTouchIDs(nil)) > 0
 }
 
+func isInputHeld() bool {
+	if ebiten.IsKeyPressed(ebiten.KeySpace) {
+		return true
+	}
+	if ebiten.IsMouseButtonPressed(ebiten.MouseButtonLeft) {
+		return true
+	}
+	return len(ebiten.AppendTouchIDs(nil)) > 0
+}
+
 func (g *Game) reset() {
 	g.score = 0
 	g.cameraX = 0
 	g.gopherY16 = (groundY - gopherHeight) * 16
 	g.gopherVY16 = 0
+	g.jumpFrames = 0
 	g.segments = []Segment{
 		{X: 0, Width: 400, IsHole: false},
 	}
@@ -162,8 +177,16 @@ func (g *Game) Update() error {
 		if isJustPressed() {
 			onGround := g.gopherY16 >= (groundY-gopherHeight)*16
 			if onGround && g.isOverGround() {
-				g.gopherVY16 = -128
+				g.gopherVY16 = minJumpVY
+				g.jumpFrames = 1
 			}
+		}
+
+		if g.jumpFrames > 0 && g.jumpFrames <= maxJumpFrames && isInputHeld() {
+			g.gopherVY16 -= 4
+			g.jumpFrames++
+		} else {
+			g.jumpFrames = 0
 		}
 
 		g.gopherVY16 += 4
