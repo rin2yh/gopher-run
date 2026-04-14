@@ -16,9 +16,7 @@ type TitleScene struct {
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
-	w := world.New()
-	w.Fill(0, ScreenWidth)
-	return &TitleScene{assets: assets, input: h, world: w}
+	return &TitleScene{assets: assets, input: h, world: world.NewFlat(ScreenWidth + 400)}
 }
 
 func (s *TitleScene) Update() Scene {

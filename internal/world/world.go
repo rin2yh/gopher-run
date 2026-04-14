@@ -18,12 +18,19 @@ type World struct {
 }
 
 func New() *World {
-	w := &World{
+	return &World{
 		Segments: []Segment{
 			{X: 0, Width: 400, IsHole: false},
 		},
 	}
-	return w
+}
+
+func NewFlat(width int) *World {
+	return &World{
+		Segments: []Segment{
+			{X: 0, Width: width, IsHole: false},
+		},
+	}
 }
 
 func (w *World) Fill(cameraX, screenWidth int) {
