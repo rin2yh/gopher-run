@@ -7,6 +7,12 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
+const (
+	maxHoleWidth        = 120 // 最大ジャンプ距離（約136px）から安全マージンを引いた上限
+	maxGroundWidth      = 250
+	holeWidthMargin     = 20  // Phase3（両足が同時に穴に入るウィンドウ）を21フレーム確保し、偶数cameraXで必ず落下判定が入るよう設定
+)
+
 type Segment struct {
 	X      int
 	Width  int
@@ -14,41 +20,58 @@ type Segment struct {
 }
 
 type World struct {
-	Segments []Segment
+	Segments       []Segment
+	minHoleWidth   int
+	minGroundWidth int
 }
 
-func New() *World {
+func New(playerWidth, playerScreenX int) *World {
 	return &World{
-		Segments: []Segment{
-			{X: 0, Width: 400, IsHole: false},
-		},
+		Segments:       []Segment{{X: 0, Width: 400, IsHole: false}},
+		minHoleWidth:   playerWidth + holeWidthMargin,
+		minGroundWidth: playerWidth + playerScreenX,
 	}
 }
 
-func NewFlat(width int) *World {
-	return &World{
-		Segments: []Segment{
-			{X: 0, Width: width, IsHole: false},
-		},
+// FlatWorld はタイトル画面など穴のない固定地面のみ必要なシーン向け。
+type FlatWorld struct {
+	segments []Segment
+}
+
+func NewFlat(width int) *FlatWorld {
+	return &FlatWorld{
+		segments: []Segment{{X: 0, Width: width, IsHole: false}},
 	}
+}
+
+func (w *FlatWorld) Draw(screen *ebiten.Image, p DrawParams, grassTileImage, dirtImage *ebiten.Image) {
+	drawSegments(w.segments, screen, p, grassTileImage, dirtImage)
 }
 
 func (w *World) Fill(cameraX, screenWidth int) {
 	rightX := 0
+	prevIsHole := false
+
 	if n := len(w.Segments); n > 0 {
 		last := w.Segments[n-1]
 		rightX = last.X + last.Width
+		prevIsHole = last.IsHole
 	}
+
 	for rightX < cameraX+screenWidth+400 {
 		seg := Segment{X: rightX}
-		if rand.Intn(3) == 0 {
-			seg.IsHole = true
-			seg.Width = 40 + rand.Intn(21)
+
+		if prevIsHole || rand.Intn(3) != 0 {
+			seg.IsHole = false
+			seg.Width = w.minGroundWidth + rand.Intn(maxGroundWidth-w.minGroundWidth+1)
 		} else {
-			seg.Width = 200 + rand.Intn(201)
+			seg.IsHole = true
+			seg.Width = w.minHoleWidth + rand.Intn(maxHoleWidth-w.minHoleWidth+1)
 		}
+
 		w.Segments = append(w.Segments, seg)
 		rightX += seg.Width
+		prevIsHole = seg.IsHole
 	}
 }
 
@@ -87,8 +110,12 @@ type DrawParams struct {
 }
 
 func (w *World) Draw(screen *ebiten.Image, p DrawParams, grassTileImage, dirtImage *ebiten.Image) {
+	drawSegments(w.Segments, screen, p, grassTileImage, dirtImage)
+}
+
+func drawSegments(segments []Segment, screen *ebiten.Image, p DrawParams, grassTileImage, dirtImage *ebiten.Image) {
 	op := &ebiten.DrawImageOptions{}
-	for _, s := range w.Segments {
+	for _, s := range segments {
 		if s.IsHole {
 			continue
 		}

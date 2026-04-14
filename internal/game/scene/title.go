@@ -12,7 +12,7 @@ import (
 type TitleScene struct {
 	assets *Assets
 	input  *input.Handler
-	world  *world.World
+	world  *world.FlatWorld
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {

@@ -23,7 +23,7 @@ type PlayingScene struct {
 func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s := &PlayingScene{assets: assets, input: h}
 	s.player.Reset()
-	s.world = world.New()
+	s.world = world.New(player.Width, player.ScreenX)
 	s.world.Fill(s.cameraX, ScreenWidth)
 	return s
 }
