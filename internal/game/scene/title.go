@@ -1,22 +1,22 @@
 package scene
 
 import (
+	"image"
+
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 
 	"gopher-run/internal/entity/player"
 	"gopher-run/internal/input"
-	"gopher-run/internal/world"
 )
 
 type TitleScene struct {
 	assets *Assets
 	input  *input.Handler
-	world  *world.FlatWorld
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
-	return &TitleScene{assets: assets, input: h, world: world.NewFlat(ScreenWidth + 400)}
+	return &TitleScene{assets: assets, input: h}
 }
 
 func (s *TitleScene) Update() Scene {
@@ -26,14 +26,25 @@ func (s *TitleScene) Update() Scene {
 	return nil
 }
 
+func (s *TitleScene) drawGround(screen *ebiten.Image) {
+	fillH := float64(ScreenHeight - player.GroundY - TileSize)
+	op := &ebiten.DrawImageOptions{}
+	for worldTileX := 0; worldTileX < ScreenWidth+400; worldTileX += TileSize {
+		w := min(TileSize, ScreenWidth+400-worldTileX)
+
+		op.GeoM.Reset()
+		op.GeoM.Translate(float64(worldTileX), float64(player.GroundY))
+		screen.DrawImage(s.assets.GrassTile.SubImage(image.Rect(0, 0, w, TileSize)).(*ebiten.Image), op)
+
+		op.GeoM.Reset()
+		op.GeoM.Scale(float64(w), fillH)
+		op.GeoM.Translate(float64(worldTileX), float64(player.GroundY+TileSize))
+		screen.DrawImage(s.assets.Dirt, op)
+	}
+}
+
 func (s *TitleScene) Draw(screen *ebiten.Image) {
-	s.world.Draw(screen, world.DrawParams{
-		CameraX:     0,
-		ScreenWidth: ScreenWidth,
-		GroundY:     player.GroundY,
-		TileSize:    TileSize,
-		FillHeight:  float64(ScreenHeight - player.GroundY - TileSize),
-	}, s.assets.GrassTile, s.assets.Dirt)
+	s.drawGround(screen)
 
 	op := &ebiten.DrawImageOptions{}
 	op.GeoM.Translate(float64(player.ScreenX), float64(player.GroundY-player.Height))

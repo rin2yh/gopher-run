@@ -33,21 +33,6 @@ func New(playerWidth, playerScreenX int) *World {
 	}
 }
 
-// FlatWorld はタイトル画面など穴のない固定地面のみ必要なシーン向け。
-type FlatWorld struct {
-	segments []Segment
-}
-
-func NewFlat(width int) *FlatWorld {
-	return &FlatWorld{
-		segments: []Segment{{X: 0, Width: width, IsHole: false}},
-	}
-}
-
-func (w *FlatWorld) Draw(screen *ebiten.Image, p DrawParams, grassTileImage, dirtImage *ebiten.Image) {
-	drawSegments(w.segments, screen, p, grassTileImage, dirtImage)
-}
-
 func (w *World) Fill(cameraX, screenWidth int) {
 	rightX := 0
 	prevIsHole := false
