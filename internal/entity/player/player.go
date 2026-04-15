@@ -113,6 +113,10 @@ func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
 	}
 }
 
+func (p *Player) IsDigging() bool {
+	return p.isDigging
+}
+
 func (p *Player) IsFallen(screenHeight int) bool {
 	return p.y16/16 > screenHeight
 }

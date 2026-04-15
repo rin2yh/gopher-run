@@ -6,36 +6,48 @@ import (
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
 
+	"gopher-run/internal/entity/particle"
 	"gopher-run/internal/entity/player"
 	"gopher-run/internal/input"
 	"gopher-run/internal/world"
 )
 
 type PlayingScene struct {
-	assets  *Assets
-	input   *input.Handler
-	score   int
-	cameraX int
-	player  player.Player
-	world   *world.World
+	assets      *Assets
+	input       *input.Handler
+	score       int
+	cameraX     int
+	player      player.Player
+	world       *world.World
+	particles   []particle.Particle
+	particleImg *ebiten.Image
 }
+
+const cameraSpeedPerFrame = 2
 
 func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s := &PlayingScene{assets: assets, input: h}
 	s.player.Reset()
 	s.world = world.New(player.Width, player.ScreenX)
 	s.world.Fill(s.cameraX, ScreenWidth)
+	s.particles = make([]particle.Particle, 0, particle.MaxParticles)
+	s.particleImg = particle.NewImage()
 	return s
 }
 
 func (s *PlayingScene) Update() Scene {
 	s.score++
-	s.cameraX += 2
+	s.cameraX += cameraSpeedPerFrame
 
 	s.player.Update(s.world, s.cameraX, s.input)
 	if s.player.IsFallen(ScreenHeight) {
 		return NewGameOverScene(s.assets, s.input, s.score, s.world, s.player, s.cameraX)
 	}
+
+	if s.player.IsDigging() {
+		s.particles = particle.SpawnDirt(s.particles, player.ScreenX, player.GroundY, player.Width)
+	}
+	s.particles = particle.Update(s.particles, cameraSpeedPerFrame)
 
 	s.world.Prune(s.cameraX)
 	s.world.Fill(s.cameraX, ScreenWidth)
@@ -51,6 +63,7 @@ func (s *PlayingScene) Draw(screen *ebiten.Image) {
 		FillHeight:  float64(ScreenHeight - player.GroundY - TileSize),
 	}, s.assets.GrassTile, s.assets.Dirt)
 
+	particle.Draw(screen, s.particles, s.particleImg)
 	s.player.Draw(screen, s.assets.Gopher)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.score/60), 10, 10)
 }
