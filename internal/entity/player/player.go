@@ -1,6 +1,8 @@
 package player
 
 import (
+	"math"
+
 	"gopher-run/internal/input"
 	"gopher-run/internal/world"
 
@@ -21,13 +23,23 @@ const (
 	gravity       = 4
 	maxFallVY     = 128
 	groundY16     = (GroundY - Height) * 16
+
+	tiltDegrees  = 8.0
+	bobAmplitude = 3.0
+	bobSpeed     = 0.35
+
+	cx = float64(Width) / 2
+	cy = float64(Height) / 2
 )
 
 type Player struct {
 	y16        int
 	vy16       int
 	jumpFrames int
-	isFalling     bool
+	isFalling  bool
+	isOnGround bool
+	bobFrame   int
+	drawOp     ebiten.DrawImageOptions
 }
 
 func (p *Player) Reset() {
@@ -35,6 +47,8 @@ func (p *Player) Reset() {
 	p.vy16 = 0
 	p.jumpFrames = 0
 	p.isFalling = false
+	p.isOnGround = true
+	p.bobFrame = 0
 }
 
 func (p *Player) isOverGround(w *world.World, cameraX int) bool {
@@ -74,6 +88,11 @@ func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
 	if canLand && p.y16 >= groundY16 {
 		p.y16 = groundY16
 		p.vy16 = 0
+		p.isOnGround = true
+		p.bobFrame++
+	} else {
+		p.bobFrame = 0
+		p.isOnGround = false
 	}
 }
 
@@ -86,7 +105,17 @@ func (p *Player) ScreenY() int {
 }
 
 func (p *Player) Draw(screen *ebiten.Image, img *ebiten.Image) {
-	op := &ebiten.DrawImageOptions{}
-	op.GeoM.Translate(float64(ScreenX), float64(p.ScreenY()))
-	screen.DrawImage(img, op)
+	const tiltAngle = tiltDegrees * math.Pi / 180.0
+
+	bobOffset := 0.0
+	if p.isOnGround {
+		bobOffset = bobAmplitude * math.Sin(bobSpeed*float64(p.bobFrame))
+	}
+
+	p.drawOp.GeoM.Reset()
+	p.drawOp.GeoM.Translate(-cx, -cy)
+	p.drawOp.GeoM.Rotate(tiltAngle)
+	p.drawOp.GeoM.Translate(cx, cy)
+	p.drawOp.GeoM.Translate(float64(ScreenX), float64(p.ScreenY())+bobOffset)
+	screen.DrawImage(img, &p.drawOp)
 }
