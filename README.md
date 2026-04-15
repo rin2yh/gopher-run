@@ -1,5 +1,6 @@
 # Gopher Run
 Go と Ebitengine で作られた 2D エンドレスランナーゲーム。
+Webブラウザのみ対応。
 
 ## 遊び方
 ### 操作方法

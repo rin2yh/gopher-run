@@ -23,10 +23,13 @@ const (
 	gravity       = 4
 	maxFallVY     = 128
 	groundY16     = (GroundY - Height) * 16
+	diggingY16    = (GroundY + 10) * 16
 
 	tiltDegrees  = 8.0
+	tiltAngle    = tiltDegrees * math.Pi / 180.0
 	bobAmplitude = 3.0
 	bobSpeed     = 0.35
+	diggingAngle = math.Pi / 2
 
 	cx = float64(Width) / 2
 	cy = float64(Height) / 2
@@ -38,6 +41,7 @@ type Player struct {
 	jumpFrames int
 	isFalling  bool
 	isOnGround bool
+	isDigging  bool
 	bobFrame   int
 	drawOp     ebiten.DrawImageOptions
 }
@@ -48,6 +52,7 @@ func (p *Player) Reset() {
 	p.jumpFrames = 0
 	p.isFalling = false
 	p.isOnGround = true
+	p.isDigging = false
 	p.bobFrame = 0
 }
 
@@ -57,6 +62,18 @@ func (p *Player) isOverGround(w *world.World, cameraX int) bool {
 
 func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
 	overGround := p.isOverGround(w, cameraX)
+
+	p.isDigging = h.IsDigging() && p.isOnGround
+
+	if p.isDigging {
+		if overGround {
+			p.y16 = diggingY16
+			p.vy16 = 0
+			return
+		}
+		p.isFalling = true
+		p.isDigging = false
+	}
 
 	if h.IsJustPressed() {
 		onGround := p.y16 >= groundY16
@@ -105,16 +122,18 @@ func (p *Player) ScreenY() int {
 }
 
 func (p *Player) Draw(screen *ebiten.Image, img *ebiten.Image) {
-	const tiltAngle = tiltDegrees * math.Pi / 180.0
-
+	angle := tiltAngle
 	bobOffset := 0.0
-	if p.isOnGround {
+
+	if p.isDigging {
+		angle = diggingAngle
+	} else if p.isOnGround {
 		bobOffset = bobAmplitude * math.Sin(bobSpeed*float64(p.bobFrame))
 	}
 
 	p.drawOp.GeoM.Reset()
 	p.drawOp.GeoM.Translate(-cx, -cy)
-	p.drawOp.GeoM.Rotate(tiltAngle)
+	p.drawOp.GeoM.Rotate(angle)
 	p.drawOp.GeoM.Translate(cx, cy)
 	p.drawOp.GeoM.Translate(float64(ScreenX), float64(p.ScreenY())+bobOffset)
 	screen.DrawImage(img, &p.drawOp)

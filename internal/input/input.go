@@ -28,3 +28,10 @@ func (h *Handler) IsHeld() bool {
 	}
 	return len(ebiten.AppendTouchIDs(nil)) > 0
 }
+
+func (h *Handler) IsDigging() bool {
+	if ebiten.IsKeyPressed(ebiten.KeyArrowDown) {
+		return true
+	}
+	return len(ebiten.AppendTouchIDs(nil)) >= 2
+}

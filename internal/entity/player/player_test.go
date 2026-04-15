@@ -45,6 +45,14 @@ func TestScreenY(t *testing.T) {
 	}
 }
 
+func solidWorld() *world.World {
+	return &world.World{
+		Segments: []world.Segment{
+			{X: 0, Width: 600, IsHole: false},
+		},
+	}
+}
+
 func holeWorld() *world.World {
 	return &world.World{
 		Segments: []world.Segment{
@@ -91,6 +99,60 @@ func TestInHole_LandingSkippedAfterFallingInHole(t *testing.T) {
 
 	if p.y16 != groundY16+10 {
 		t.Errorf("y16 = %d, want %d", p.y16, groundY16+10)
+	}
+}
+
+func TestDigging_FixedAtDiggingY16WhenOverGround(t *testing.T) {
+	w := solidWorld()
+	p := &Player{y16: groundY16, isOnGround: true, isDigging: true}
+
+	if !p.isOverGround(w, 0) {
+		t.Fatal("player must be over ground")
+	}
+
+	p.y16 = diggingY16
+	p.vy16 = 0
+
+	if p.y16 != diggingY16 {
+		t.Errorf("y16 = %d, want %d (diggingY16)", p.y16, diggingY16)
+	}
+	if p.vy16 != 0 {
+		t.Errorf("vy16 = %d, want 0", p.vy16)
+	}
+}
+
+func TestDigging_ReturnsToGroundWhenNotDigging(t *testing.T) {
+	w := solidWorld()
+	p := &Player{y16: diggingY16, isOnGround: true, isDigging: false}
+
+	overGround := p.isOverGround(w, 0)
+	canLand := !p.isFalling && overGround
+	if canLand && p.y16 >= groundY16 {
+		p.y16 = groundY16
+		p.vy16 = 0
+	}
+
+	if p.y16 != groundY16 {
+		t.Errorf("y16 = %d, want %d (groundY16)", p.y16, groundY16)
+	}
+}
+
+func TestDigging_FallsWhenOverHole(t *testing.T) {
+	w := holeWorld()
+	p := &Player{y16: diggingY16, isOnGround: true, isDigging: true}
+
+	if p.isOverGround(w, 0) {
+		t.Fatal("player must be over hole for this test")
+	}
+
+	p.isFalling = true
+	p.isDigging = false
+
+	if !p.isFalling {
+		t.Error("isFalling = false, want true")
+	}
+	if p.isDigging {
+		t.Error("isDigging = true, want false")
 	}
 }
 
