@@ -3,9 +3,6 @@ package player
 import (
 	"math"
 
-	"gopher-run/internal/input"
-	"gopher-run/internal/world"
-
 	"github.com/hajimehoshi/ebiten/v2"
 )
 
@@ -35,13 +32,30 @@ const (
 	cy = float64(Height) / 2
 )
 
+type GroundChecker interface {
+	IsGroundAt(worldX int) bool
+}
+
+type InputReader interface {
+	IsJustPressed() bool
+	IsHeld() bool
+	IsDigging() bool
+}
+
+type PlayerState int
+
+const (
+	StateOnGround PlayerState = iota
+	StateJumping
+	StateDigging
+	StateFalling
+)
+
 type Player struct {
 	y16        int
 	vy16       int
 	jumpFrames int
-	isFalling  bool
-	isOnGround bool
-	isDigging  bool
+	state      PlayerState
 	bobFrame   int
 	drawOp     ebiten.DrawImageOptions
 }
@@ -50,36 +64,47 @@ func (p *Player) Reset() {
 	p.y16 = groundY16
 	p.vy16 = 0
 	p.jumpFrames = 0
-	p.isFalling = false
-	p.isOnGround = true
-	p.isDigging = false
+	p.state = StateOnGround
 	p.bobFrame = 0
 }
 
-func (p *Player) isOverGround(w *world.World, cameraX int) bool {
+func (p *Player) isOverGround(w GroundChecker, cameraX int) bool {
 	return w.IsGroundAt(ScreenX+cameraX) || w.IsGroundAt(ScreenX+Width-1+cameraX)
 }
 
-func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
-	overGround := p.isOverGround(w, cameraX)
-
-	p.isDigging = h.IsDigging() && p.isOnGround
-
-	if p.isDigging {
-		if overGround {
-			p.y16 = diggingY16
-			p.vy16 = 0
+func (p *Player) processDigging(h InputReader, overGround bool) {
+	if p.state == StateDigging {
+		if !h.IsDigging() {
+			p.state = StateOnGround
 			return
 		}
-		p.isFalling = true
-		p.isDigging = false
+		if !overGround {
+			p.state = StateFalling
+			return
+		}
+		p.y16 = diggingY16
+		p.vy16 = 0
+		return
 	}
 
+	if h.IsDigging() && p.state == StateOnGround {
+		if overGround {
+			p.state = StateDigging
+			p.y16 = diggingY16
+			p.vy16 = 0
+		} else {
+			p.state = StateFalling
+		}
+	}
+}
+
+func (p *Player) processJump(h InputReader, overGround bool) {
 	if h.IsJustPressed() {
 		onGround := p.y16 >= groundY16
 		if onGround && overGround {
 			p.vy16 = minJumpVY
 			p.jumpFrames = 1
+			p.state = StateJumping
 		}
 	}
 
@@ -89,32 +114,50 @@ func (p *Player) Update(w *world.World, cameraX int, h *input.Handler) {
 	} else {
 		p.jumpFrames = 0
 	}
+}
 
+func (p *Player) applyPhysics() {
 	p.vy16 += gravity
 	if p.vy16 > maxFallVY {
 		p.vy16 = maxFallVY
 	}
 	p.y16 += p.vy16
+}
 
-	fallingIntoHole := !overGround && p.y16 > groundY16
-	if fallingIntoHole {
-		p.isFalling = true
+func (p *Player) updateGroundState(overGround bool) {
+	if !overGround && p.y16 > groundY16 {
+		p.state = StateFalling
+		return
 	}
 
-	canLand := !p.isFalling && overGround
-	if canLand && p.y16 >= groundY16 {
+	if overGround && p.y16 >= groundY16 {
 		p.y16 = groundY16
 		p.vy16 = 0
-		p.isOnGround = true
+		p.state = StateOnGround
 		p.bobFrame++
 	} else {
 		p.bobFrame = 0
-		p.isOnGround = false
+		p.state = StateJumping
+	}
+}
+
+func (p *Player) Update(w GroundChecker, cameraX int, h InputReader) {
+	overGround := p.isOverGround(w, cameraX)
+	p.processDigging(h, overGround)
+	if p.state == StateDigging {
+		return
+	}
+	if p.state != StateFalling {
+		p.processJump(h, overGround)
+	}
+	p.applyPhysics()
+	if p.state != StateFalling {
+		p.updateGroundState(overGround)
 	}
 }
 
 func (p *Player) IsDigging() bool {
-	return p.isDigging
+	return p.state == StateDigging
 }
 
 func (p *Player) IsFallen(screenHeight int) bool {
@@ -129,10 +172,11 @@ func (p *Player) Draw(screen *ebiten.Image, img *ebiten.Image) {
 	angle := tiltAngle
 	bobOffset := 0.0
 
-	if p.isDigging {
+	switch p.state {
+	case StateDigging:
 		angle = diggingAngle
-	} else if p.isOnGround {
-		bobOffset = bobAmplitude * math.Sin(bobSpeed*float64(p.bobFrame))
+	case StateOnGround:
+		bobOffset = bobAmplitude * math.Sin(bobSpeed * float64(p.bobFrame))
 	}
 
 	p.drawOp.GeoM.Reset()

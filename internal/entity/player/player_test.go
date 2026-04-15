@@ -2,12 +2,45 @@ package player
 
 import (
 	"testing"
-
-	"gopher-run/internal/world"
 )
 
+type mockInput struct {
+	justPressed bool
+	held        bool
+	digging     bool
+}
+
+func (m *mockInput) IsJustPressed() bool { return m.justPressed }
+func (m *mockInput) IsHeld() bool        { return m.held }
+func (m *mockInput) IsDigging() bool     { return m.digging }
+
+type mockWorld struct {
+	groundXSet map[int]bool
+}
+
+func (m *mockWorld) IsGroundAt(worldX int) bool { return m.groundXSet[worldX] }
+
+func solidMock() *mockWorld {
+	ground := map[int]bool{}
+	for x := 0; x < 600; x++ {
+		ground[x] = true
+	}
+	return &mockWorld{groundXSet: ground}
+}
+
+func holeMock() *mockWorld {
+	ground := map[int]bool{}
+	for x := 0; x < 80; x++ {
+		ground[x] = true
+	}
+	for x := 180; x < 600; x++ {
+		ground[x] = true
+	}
+	return &mockWorld{groundXSet: ground}
+}
+
 func TestReset(t *testing.T) {
-	p := &Player{isFalling: true}
+	p := &Player{state: StateFalling}
 	p.Reset()
 
 	if p.y16 != groundY16 {
@@ -19,8 +52,8 @@ func TestReset(t *testing.T) {
 	if p.jumpFrames != 0 {
 		t.Errorf("jumpFrames = %d, want 0", p.jumpFrames)
 	}
-	if p.isFalling {
-		t.Error("isFalling = true, want false")
+	if p.state != StateOnGround {
+		t.Errorf("state = %v, want StateOnGround", p.state)
 	}
 }
 
@@ -45,74 +78,38 @@ func TestScreenY(t *testing.T) {
 	}
 }
 
-func solidWorld() *world.World {
-	return &world.World{
-		Segments: []world.Segment{
-			{X: 0, Width: 600, IsHole: false},
-		},
+func TestUpdate_FallsIntoHole(t *testing.T) {
+	w := holeMock() // cameraX=0 → ScreenX=80 is in hole
+	h := &mockInput{}
+	p := &Player{state: StateJumping, y16: groundY16 + 1}
+	p.Update(w, 0, h)
+	if p.state != StateFalling {
+		t.Errorf("state = %v, want StateFalling", p.state)
 	}
 }
 
-func holeWorld() *world.World {
-	return &world.World{
-		Segments: []world.Segment{
-			{X: 0, Width: 80, IsHole: false},
-			{X: 80, Width: 100, IsHole: true},
-			{X: 180, Width: 400, IsHole: false},
-		},
+func TestUpdate_LandingSkippedAfterFalling(t *testing.T) {
+	w := solidMock()
+	h := &mockInput{}
+	p := &Player{state: StateFalling, y16: groundY16 + 10, vy16: 8}
+	p.Update(w, 0, h)
+	if p.state != StateFalling {
+		t.Errorf("state = %v, want StateFalling", p.state)
+	}
+	// 物理演算は継続する（地面にスナップされない）
+	if p.y16 == groundY16 {
+		t.Error("y16 was snapped to groundY16, want falling to continue")
 	}
 }
 
-func TestInHole_SetWhenBelowGroundOverHole(t *testing.T) {
-	w := holeWorld()
-
-	p := &Player{y16: groundY16 + 1}
-
-	if p.isOverGround(w, 0) {
-		t.Fatal("player must be over hole")
+func TestUpdate_DiggingFixesY(t *testing.T) {
+	w := solidMock()
+	h := &mockInput{digging: true}
+	p := &Player{state: StateOnGround, y16: groundY16}
+	p.Update(w, 0, h)
+	if p.state != StateDigging {
+		t.Errorf("state = %v, want StateDigging", p.state)
 	}
-
-	fallingIntoHole := !p.isOverGround(w, 0) && p.y16 > groundY16
-	if fallingIntoHole {
-		p.isFalling = true
-	}
-
-	if !p.isFalling {
-		t.Error("isFalling = false, want true")
-	}
-}
-
-func TestInHole_LandingSkippedAfterFallingInHole(t *testing.T) {
-	w := holeWorld()
-
-	p := &Player{y16: groundY16 + 10, isFalling: true}
-
-	if !p.isOverGround(w, 100) {
-		t.Fatal("player must be over ground")
-	}
-
-	canLand := !p.isFalling && p.isOverGround(w, 100)
-	if canLand && p.y16 >= groundY16 {
-		p.y16 = groundY16
-		p.vy16 = 0
-	}
-
-	if p.y16 != groundY16+10 {
-		t.Errorf("y16 = %d, want %d", p.y16, groundY16+10)
-	}
-}
-
-func TestDigging_FixedAtDiggingY16WhenOverGround(t *testing.T) {
-	w := solidWorld()
-	p := &Player{y16: groundY16, isOnGround: true, isDigging: true}
-
-	if !p.isOverGround(w, 0) {
-		t.Fatal("player must be over ground")
-	}
-
-	p.y16 = diggingY16
-	p.vy16 = 0
-
 	if p.y16 != diggingY16 {
 		t.Errorf("y16 = %d, want %d (diggingY16)", p.y16, diggingY16)
 	}
@@ -121,38 +118,50 @@ func TestDigging_FixedAtDiggingY16WhenOverGround(t *testing.T) {
 	}
 }
 
-func TestDigging_ReturnsToGroundWhenNotDigging(t *testing.T) {
-	w := solidWorld()
-	p := &Player{y16: diggingY16, isOnGround: true, isDigging: false}
-
-	overGround := p.isOverGround(w, 0)
-	canLand := !p.isFalling && overGround
-	if canLand && p.y16 >= groundY16 {
-		p.y16 = groundY16
-		p.vy16 = 0
+func TestUpdate_StopsDiggingOnRelease(t *testing.T) {
+	w := solidMock()
+	h := &mockInput{digging: false}
+	p := &Player{state: StateDigging, y16: diggingY16}
+	p.Update(w, 0, h)
+	if p.state != StateOnGround {
+		t.Errorf("state = %v, want StateOnGround", p.state)
 	}
-
 	if p.y16 != groundY16 {
 		t.Errorf("y16 = %d, want %d (groundY16)", p.y16, groundY16)
 	}
 }
 
-func TestDigging_FallsWhenOverHole(t *testing.T) {
-	w := holeWorld()
-	p := &Player{y16: diggingY16, isOnGround: true, isDigging: true}
-
-	if p.isOverGround(w, 0) {
-		t.Fatal("player must be over hole for this test")
+func TestUpdate_DiggingOverHoleCausesFall(t *testing.T) {
+	w := holeMock() // cameraX=0 → ScreenX=80 is in hole
+	h := &mockInput{digging: true}
+	p := &Player{state: StateOnGround, y16: groundY16}
+	p.Update(w, 0, h)
+	if p.state != StateFalling {
+		t.Errorf("state = %v, want StateFalling", p.state)
 	}
+}
 
-	p.isFalling = true
-	p.isDigging = false
-
-	if !p.isFalling {
-		t.Error("isFalling = false, want true")
+func TestUpdate_Jump(t *testing.T) {
+	w := solidMock()
+	h := &mockInput{justPressed: true, held: true}
+	p := &Player{state: StateOnGround, y16: groundY16}
+	p.Update(w, 0, h)
+	if p.vy16 >= 0 {
+		t.Errorf("vy16 = %d, want negative (jumping)", p.vy16)
 	}
-	if p.isDigging {
-		t.Error("isDigging = true, want false")
+}
+
+func TestUpdate_LandAfterJump(t *testing.T) {
+	w := solidMock()
+	h := &mockInput{}
+	// 落下中（vy16 > 0）で地面付近
+	p := &Player{state: StateJumping, y16: groundY16 - 10, vy16: 20}
+	p.Update(w, 0, h)
+	if p.state != StateOnGround {
+		t.Errorf("state = %v, want StateOnGround", p.state)
+	}
+	if p.y16 != groundY16 {
+		t.Errorf("y16 = %d, want %d", p.y16, groundY16)
 	}
 }
 
