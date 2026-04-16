@@ -8,9 +8,9 @@ import (
 )
 
 const (
-	maxHoleWidth        = 120 // 最大ジャンプ距離（約136px）から安全マージンを引いた上限
-	maxGroundWidth      = 250
-	holeWidthMargin     = 20  // Phase3（両足が同時に穴に入るウィンドウ）を21フレーム確保し、偶数cameraXで必ず落下判定が入るよう設定
+	maxHoleWidth    = 120 // 最大ジャンプ距離（約136px）から安全マージンを引いた上限
+	maxGroundWidth  = 250
+	holeWidthMargin = 20 // Phase3（両足が同時に穴に入るウィンドウ）を21フレーム確保し、偶数cameraXで必ず落下判定が入るよう設定
 )
 
 type Segment struct {

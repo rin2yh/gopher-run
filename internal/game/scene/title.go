@@ -1,25 +1,54 @@
 package scene
 
 import (
+	"bytes"
 	"image"
+	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
-	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	ebitentext "github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/gobold"
 
 	"gopher-run/internal/entity/player"
 	"gopher-run/internal/input"
 )
 
+const (
+	titleFontSize    = 68.0
+	subtitleFontSize = 20.0
+	titleYRatio      = 0.35
+	subtitleOffset   = 100.0
+	blinkCycle       = 60
+	blinkVisible     = 40
+	shadowOffset     = 3.0
+)
+
+var titleColor = color.RGBA{0xFF, 0xE0, 0x00, 0xFF}
+
 type TitleScene struct {
-	assets *Assets
-	input  *input.Handler
+	assets       *Assets
+	input        *input.Handler
+	tick         int
+	titleFace    *ebitentext.GoTextFace
+	subtitleFace *ebitentext.GoTextFace
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
-	return &TitleScene{assets: assets, input: h}
+	src, err := ebitentext.NewGoTextFaceSource(bytes.NewReader(gobold.TTF))
+	if err != nil {
+		log.Fatal("failed to load gobold font:", err)
+	}
+	return &TitleScene{
+		assets:       assets,
+		input:        h,
+		titleFace:    &ebitentext.GoTextFace{Source: src, Size: titleFontSize},
+		subtitleFace: &ebitentext.GoTextFace{Source: src, Size: subtitleFontSize},
+	}
 }
 
 func (s *TitleScene) Update() Scene {
+	s.tick++
 	if s.input.IsJustPressed() {
 		return NewPlayingScene(s.assets, s.input)
 	}
@@ -43,6 +72,28 @@ func (s *TitleScene) drawGround(screen *ebiten.Image) {
 	}
 }
 
+func (s *TitleScene) drawCenteredText(
+	screen *ebiten.Image,
+	str string,
+	face *ebitentext.GoTextFace,
+	x, y float64,
+	clr color.Color,
+	shadow bool,
+) {
+	if shadow {
+		shadowOpts := &ebitentext.DrawOptions{}
+		shadowOpts.PrimaryAlign = ebitentext.AlignCenter
+		shadowOpts.ColorScale.ScaleWithColor(color.RGBA{0, 0, 0, 200})
+		shadowOpts.GeoM.Translate(x+shadowOffset, y+shadowOffset)
+		ebitentext.Draw(screen, str, face, shadowOpts)
+	}
+	opts := &ebitentext.DrawOptions{}
+	opts.PrimaryAlign = ebitentext.AlignCenter
+	opts.ColorScale.ScaleWithColor(clr)
+	opts.GeoM.Translate(x, y)
+	ebitentext.Draw(screen, str, face, opts)
+}
+
 func (s *TitleScene) Draw(screen *ebiten.Image) {
 	s.drawGround(screen)
 
@@ -50,6 +101,12 @@ func (s *TitleScene) Draw(screen *ebiten.Image) {
 	op.GeoM.Translate(float64(player.ScreenX), float64(player.GroundY-player.Height))
 	screen.DrawImage(s.assets.Gopher, op)
 
-	ebitenutil.DebugPrintAt(screen, "GOPHER RUN", ScreenWidth/2-40, ScreenHeight/2-30)
-	ebitenutil.DebugPrintAt(screen, "Press SPACE / Click to start", ScreenWidth/2-100, ScreenHeight/2-10)
+	titleY := float64(ScreenHeight) * titleYRatio
+	cx := float64(ScreenWidth) / 2
+
+	s.drawCenteredText(screen, "Gopher Run", s.titleFace, cx, titleY, titleColor, true)
+
+	if s.tick%blinkCycle < blinkVisible {
+		s.drawCenteredText(screen, "Press SPACE / Click to start", s.subtitleFace, cx, titleY+subtitleOffset, color.White, false)
+	}
 }

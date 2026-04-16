@@ -176,7 +176,7 @@ func (p *Player) Draw(screen *ebiten.Image, img *ebiten.Image) {
 	case StateDigging:
 		angle = diggingAngle
 	case StateOnGround:
-		bobOffset = bobAmplitude * math.Sin(bobSpeed * float64(p.bobFrame))
+		bobOffset = bobAmplitude * math.Sin(bobSpeed*float64(p.bobFrame))
 	}
 
 	p.drawOp.GeoM.Reset()
