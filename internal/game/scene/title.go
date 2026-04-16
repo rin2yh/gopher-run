@@ -15,16 +15,20 @@ import (
 )
 
 const (
-	titleFontSize    = 68.0
-	subtitleFontSize = 20.0
-	titleYRatio      = 0.35
-	subtitleOffset   = 100.0
-	blinkCycle       = 60
-	blinkVisible     = 40
-	shadowOffset     = 3.0
+	titleFontSize      = 68.0
+	subtitleFontSize   = 20.0
+	controlFontSize    = 15.0
+	titleYRatio        = 0.35
+	subtitleOffset     = 100.0
+	controlsOffset     = 140.0
+	controlsLineHeight = 25.0
+	blinkCycle         = 60
+	blinkVisible       = 40
+	shadowOffset       = 3.0
 )
 
 var titleColor = color.RGBA{0xFF, 0xE0, 0x00, 0xFF}
+var controlColor = color.RGBA{0xCC, 0xCC, 0xCC, 0xFF}
 
 type TitleScene struct {
 	assets       *Assets
@@ -32,6 +36,7 @@ type TitleScene struct {
 	tick         int
 	titleFace    *ebitentext.GoTextFace
 	subtitleFace *ebitentext.GoTextFace
+	controlFace  *ebitentext.GoTextFace
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
@@ -44,6 +49,7 @@ func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
 		input:        h,
 		titleFace:    &ebitentext.GoTextFace{Source: src, Size: titleFontSize},
 		subtitleFace: &ebitentext.GoTextFace{Source: src, Size: subtitleFontSize},
+		controlFace:  &ebitentext.GoTextFace{Source: src, Size: controlFontSize},
 	}
 }
 
@@ -109,4 +115,7 @@ func (s *TitleScene) Draw(screen *ebiten.Image) {
 	if s.tick%blinkCycle < blinkVisible {
 		s.drawCenteredText(screen, "Press SPACE / Click to start", s.subtitleFace, cx, titleY+subtitleOffset, color.White, false)
 	}
+
+	s.drawCenteredText(screen, "SPACE / Tap : Jump", s.controlFace, cx, titleY+controlsOffset, controlColor, false)
+	s.drawCenteredText(screen, "\u2193 / 2-finger : Burrow", s.controlFace, cx, titleY+controlsOffset+controlsLineHeight, controlColor, false)
 }
