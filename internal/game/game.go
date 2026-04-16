@@ -21,8 +21,8 @@ type Game struct {
 	assets *scene.Assets
 }
 
-func New(gopherImg, dirtImg, grassTileImg *ebiten.Image) *Game {
-	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg}
+func New(gopherImg, dirtImg, grassTileImg, eagleImg *ebiten.Image) *Game {
+	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg, Eagle: eagleImg}
 	h := input.NewHandler()
 	return &Game{mode: scene.NewTitleScene(assets, h), input: h, assets: assets}
 }

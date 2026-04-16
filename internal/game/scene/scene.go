@@ -17,4 +17,5 @@ type Assets struct {
 	Gopher    *ebiten.Image
 	Dirt      *ebiten.Image
 	GrassTile *ebiten.Image
+	Eagle     *ebiten.Image
 }

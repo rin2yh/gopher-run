@@ -69,6 +69,19 @@ func (w *World) Prune(cameraX int) {
 	w.Segments = w.Segments[i:]
 }
 
+// ShiftPastHole は worldX から width の範囲が穴と重なる場合、穴の末端まで worldX をずらして返す。
+func (w *World) ShiftPastHole(worldX, width float64) float64 {
+	for _, s := range w.Segments {
+		if !s.IsHole {
+			continue
+		}
+		if worldX < float64(s.X+s.Width) && worldX+width > float64(s.X) {
+			worldX = float64(s.X + s.Width)
+		}
+	}
+	return worldX
+}
+
 func (w *World) IsGroundAt(worldX int) bool {
 	for _, s := range w.Segments {
 		if !s.IsHole && worldX >= s.X && worldX < s.X+s.Width {
