@@ -1,9 +1,13 @@
 package game
 
 import (
+	"bytes"
 	"image/color"
+	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
+	ebitentext "github.com/hajimehoshi/ebiten/v2/text/v2"
+	"golang.org/x/image/font/gofont/gobold"
 
 	"gopher-run/internal/game/scene"
 	"gopher-run/internal/input"
@@ -22,7 +26,11 @@ type Game struct {
 }
 
 func New(gopherImg, dirtImg, grassTileImg, eagleImg *ebiten.Image) *Game {
-	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg, Eagle: eagleImg}
+	src, err := ebitentext.NewGoTextFaceSource(bytes.NewReader(gobold.TTF))
+	if err != nil {
+		log.Fatal("failed to load gobold font:", err)
+	}
+	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg, Eagle: eagleImg, FontSource: src}
 	h := input.NewHandler()
 	return &Game{mode: scene.NewTitleScene(assets, h), input: h, assets: assets}
 }

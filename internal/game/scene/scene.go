@@ -1,6 +1,9 @@
 package scene
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+	ebitentext "github.com/hajimehoshi/ebiten/v2/text/v2"
+)
 
 const (
 	ScreenWidth  = 800
@@ -14,8 +17,9 @@ type Scene interface {
 }
 
 type Assets struct {
-	Gopher    *ebiten.Image
-	Dirt      *ebiten.Image
-	GrassTile *ebiten.Image
-	Eagle     *ebiten.Image
+	Gopher     *ebiten.Image
+	Dirt       *ebiten.Image
+	GrassTile  *ebiten.Image
+	Eagle      *ebiten.Image
+	FontSource *ebitentext.GoTextFaceSource
 }

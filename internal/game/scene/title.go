@@ -1,14 +1,11 @@
 package scene
 
 import (
-	"bytes"
 	"image"
 	"image/color"
-	"log"
 
 	"github.com/hajimehoshi/ebiten/v2"
 	ebitentext "github.com/hajimehoshi/ebiten/v2/text/v2"
-	"golang.org/x/image/font/gofont/gobold"
 
 	"gopher-run/internal/entity/player"
 	"gopher-run/internal/input"
@@ -40,16 +37,12 @@ type TitleScene struct {
 }
 
 func NewTitleScene(assets *Assets, h *input.Handler) *TitleScene {
-	src, err := ebitentext.NewGoTextFaceSource(bytes.NewReader(gobold.TTF))
-	if err != nil {
-		log.Fatal("failed to load gobold font:", err)
-	}
 	return &TitleScene{
 		assets:       assets,
 		input:        h,
-		titleFace:    &ebitentext.GoTextFace{Source: src, Size: titleFontSize},
-		subtitleFace: &ebitentext.GoTextFace{Source: src, Size: subtitleFontSize},
-		controlFace:  &ebitentext.GoTextFace{Source: src, Size: controlFontSize},
+		titleFace:    &ebitentext.GoTextFace{Source: assets.FontSource, Size: titleFontSize},
+		subtitleFace: &ebitentext.GoTextFace{Source: assets.FontSource, Size: subtitleFontSize},
+		controlFace:  &ebitentext.GoTextFace{Source: assets.FontSource, Size: controlFontSize},
 	}
 }
 

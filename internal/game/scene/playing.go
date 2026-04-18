@@ -5,28 +5,36 @@ import (
 
 	"github.com/hajimehoshi/ebiten/v2"
 	"github.com/hajimehoshi/ebiten/v2/ebitenutil"
+	ebitentext "github.com/hajimehoshi/ebiten/v2/text/v2"
 
 	"gopher-run/internal/entity/enemy"
 	"gopher-run/internal/entity/particle"
 	"gopher-run/internal/entity/player"
+	"gopher-run/internal/entity/popup"
 	"gopher-run/internal/input"
 	"gopher-run/internal/world"
 )
 
 type PlayingScene struct {
-	assets      *Assets
-	input       *input.Handler
-	scorer      *Scorer
-	cameraX     int
-	player      player.Player
-	world       *world.World
-	particles   []particle.Particle
-	particleImg *ebiten.Image
-	enemies     []enemy.Enemy
-	wasOverHole bool
+	assets         *Assets
+	input          *input.Handler
+	scorer         *Scorer
+	cameraX        int
+	player         player.Player
+	world          *world.World
+	particles      []particle.Particle
+	particleImg    *ebiten.Image
+	enemies        []enemy.Enemy
+	wasOverHole    bool
+	popups         []popup.Popup
+	popupFaceSmall *ebitentext.GoTextFace
+	popupFaceLarge *ebitentext.GoTextFace
 }
 
-const cameraSpeedPerFrame = 2
+const (
+	cameraSpeedPerFrame = 2
+	popupSpawnX         = float64(player.ScreenX + player.Width/2)
+)
 
 func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s := &PlayingScene{assets: assets, input: h}
@@ -36,6 +44,8 @@ func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s.scorer = NewScorer(s.cameraX)
 	s.particles = make([]particle.Particle, 0, particle.MaxParticles)
 	s.particleImg = particle.NewImage()
+	s.popupFaceSmall = &ebitentext.GoTextFace{Source: assets.FontSource, Size: popup.SmallFontSize}
+	s.popupFaceLarge = &ebitentext.GoTextFace{Source: assets.FontSource, Size: popup.LargeFontSize}
 	const eagleSpacing = 1200.0
 	s.enemies = []enemy.Enemy{
 		enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX)),
@@ -75,6 +85,7 @@ func (s *PlayingScene) Update() Scene {
 	overGroundNow := s.player.IsOverGround()
 	if s.wasOverHole && overGroundNow && !airborne {
 		s.scorer.NoticeHoleCleared()
+		s.popups = popup.Spawn(s.popups, popup.NewHoleClear(popupSpawnX, float64(s.player.ScreenY()), s.popupFaceSmall))
 	}
 	s.wasOverHole = !overGroundNow
 
@@ -82,6 +93,7 @@ func (s *PlayingScene) Update() Scene {
 		s.particles = particle.SpawnDirt(s.particles, player.ScreenX, player.GroundY, player.Width)
 	}
 	s.particles = particle.Update(s.particles, cameraSpeedPerFrame)
+	s.popups = popup.Update(s.popups)
 
 	for i, e := range s.enemies {
 		e.Move()
@@ -90,6 +102,7 @@ func (s *PlayingScene) Update() Scene {
 		}
 		if e.X() < 0 {
 			s.scorer.NoticeEagleDodged()
+			s.popups = popup.Spawn(s.popups, popup.NewEagleDodge(popupSpawnX, float64(s.player.ScreenY()), s.popupFaceLarge))
 			s.enemies[i] = enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX))
 		}
 	}
@@ -113,5 +126,6 @@ func (s *PlayingScene) Draw(screen *ebiten.Image) {
 		e.Draw(screen, s.assets.Eagle)
 	}
 	s.player.Draw(screen, s.assets.Gopher)
+	popup.Draw(screen, s.popups)
 	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.scorer.Value()), 10, 10)
 }
