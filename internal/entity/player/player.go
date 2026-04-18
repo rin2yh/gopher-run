@@ -56,6 +56,7 @@ type Player struct {
 	vy16       int
 	jumpFrames int
 	state      PlayerState
+	overGround bool
 	bobFrame   int
 	drawOp     ebiten.DrawImageOptions
 }
@@ -65,6 +66,7 @@ func (p *Player) Reset() {
 	p.vy16 = 0
 	p.jumpFrames = 0
 	p.state = StateOnGround
+	p.overGround = true
 	p.bobFrame = 0
 }
 
@@ -143,6 +145,7 @@ func (p *Player) updateGroundState(overGround bool) {
 
 func (p *Player) Update(w GroundChecker, cameraX int, h InputReader) {
 	overGround := p.isOverGround(w, cameraX)
+	p.overGround = overGround
 	p.processDigging(h, overGround)
 	if p.state == StateDigging {
 		return
@@ -158,6 +161,14 @@ func (p *Player) Update(w GroundChecker, cameraX int, h InputReader) {
 
 func (p *Player) IsDigging() bool {
 	return p.state == StateDigging
+}
+
+func (p *Player) IsAirborne() bool {
+	return p.state == StateJumping || p.state == StateFalling
+}
+
+func (p *Player) IsOverGround() bool {
+	return p.overGround
 }
 
 func (p *Player) IsFallen(screenHeight int) bool {

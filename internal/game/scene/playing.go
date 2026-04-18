@@ -16,13 +16,14 @@ import (
 type PlayingScene struct {
 	assets      *Assets
 	input       *input.Handler
-	score       int
+	scorer      *Scorer
 	cameraX     int
 	player      player.Player
 	world       *world.World
 	particles   []particle.Particle
 	particleImg *ebiten.Image
 	enemies     []enemy.Enemy
+	wasOverHole bool
 }
 
 const cameraSpeedPerFrame = 2
@@ -32,6 +33,7 @@ func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s.player.Reset()
 	s.world = world.New(player.Width, player.ScreenX)
 	s.world.Fill(s.cameraX, ScreenWidth)
+	s.scorer = NewScorer(s.cameraX)
 	s.particles = make([]particle.Particle, 0, particle.MaxParticles)
 	s.particleImg = particle.NewImage()
 	const eagleSpacing = 1200.0
@@ -59,15 +61,24 @@ func (s *PlayingScene) safeEagleSpawnX(fromX float64) float64 {
 }
 
 func (s *PlayingScene) Update() Scene {
-	s.score++
 	s.cameraX += cameraSpeedPerFrame
 
 	s.player.Update(s.world, s.cameraX, s.input)
 	if s.player.IsFallen(ScreenHeight) {
-		return NewGameOverScene(s.assets, s.input, s.score, s.world, s.player, s.cameraX)
+		return NewGameOverScene(s.assets, s.input, s.scorer.Value(), s.world, s.player, s.cameraX)
 	}
 
-	if s.player.IsDigging() {
+	airborne := s.player.IsAirborne()
+	digging := s.player.IsDigging()
+	s.scorer.AddDistance(s.cameraX, airborne, digging)
+
+	overGroundNow := s.player.IsOverGround()
+	if s.wasOverHole && overGroundNow && !airborne {
+		s.scorer.NoticeHoleCleared()
+	}
+	s.wasOverHole = !overGroundNow
+
+	if digging {
 		s.particles = particle.SpawnDirt(s.particles, player.ScreenX, player.GroundY, player.Width)
 	}
 	s.particles = particle.Update(s.particles, cameraSpeedPerFrame)
@@ -75,9 +86,10 @@ func (s *PlayingScene) Update() Scene {
 	for i, e := range s.enemies {
 		e.Move()
 		if e.Hit(float64(player.ScreenX), float64(s.player.ScreenY()), player.Width, player.Height) {
-			return NewGameOverScene(s.assets, s.input, s.score, s.world, s.player, s.cameraX)
+			return NewGameOverScene(s.assets, s.input, s.scorer.Value(), s.world, s.player, s.cameraX)
 		}
 		if e.X() < 0 {
+			s.scorer.NoticeEagleDodged()
 			s.enemies[i] = enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX))
 		}
 	}
@@ -101,5 +113,5 @@ func (s *PlayingScene) Draw(screen *ebiten.Image) {
 		e.Draw(screen, s.assets.Eagle)
 	}
 	s.player.Draw(screen, s.assets.Gopher)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.score/60), 10, 10)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.scorer.Value()), 10, 10)
 }

@@ -49,6 +49,6 @@ func (s *GameOverScene) Draw(screen *ebiten.Image) {
 
 	s.player.Draw(screen, s.assets.Gopher)
 	ebitenutil.DebugPrintAt(screen, "GAME OVER", ScreenWidth/2-35, ScreenHeight/2-30)
-	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.score/60), ScreenWidth/2-30, ScreenHeight/2-10)
+	ebitenutil.DebugPrintAt(screen, fmt.Sprintf("Score: %d", s.score), ScreenWidth/2-30, ScreenHeight/2-10)
 	ebitenutil.DebugPrintAt(screen, "Press SPACE / Click to restart", ScreenWidth/2-105, ScreenHeight/2+10)
 }
