@@ -6,6 +6,7 @@ import (
 	"image/color"
 	"image/png"
 	"log"
+	"math"
 
 	"github.com/hajimehoshi/ebiten/v2"
 
@@ -17,6 +18,7 @@ var (
 	dirtImage      *ebiten.Image
 	grassTileImage *ebiten.Image
 	eagleImage     *ebiten.Image
+	snakeImage     *ebiten.Image
 )
 
 func init() {
@@ -42,12 +44,49 @@ func init() {
 		log.Fatal(err)
 	}
 	eagleImage = ebiten.NewImageFromImage(img)
+
+	img, err = png.Decode(bytes.NewReader(snakePng))
+	if err != nil {
+		log.Fatal(err)
+	}
+	snakeImage = composeSnake(ebiten.NewImageFromImage(img))
+}
+
+func composeSnake(sheet *ebiten.Image) *ebiten.Image {
+	const (
+		tile = 42
+		step = 30
+	)
+	head := sheet.SubImage(image.Rect(0, tile*2, tile, tile*3)).(*ebiten.Image)
+	body := sheet.SubImage(image.Rect(tile*2, tile*2, tile*3, tile*3)).(*ebiten.Image)
+	tail := sheet.SubImage(image.Rect(tile, tile*2, tile*2, tile*3)).(*ebiten.Image)
+
+	dst := ebiten.NewImage(tile+step*2, tile)
+
+	rotated := func(piece *ebiten.Image, x, angle float64) {
+		op := &ebiten.DrawImageOptions{}
+		op.GeoM.Translate(-tile/2.0, -tile/2.0)
+		op.GeoM.Rotate(angle)
+		op.GeoM.Translate(tile/2.0, tile/2.0)
+		op.GeoM.Translate(x, 0)
+		dst.DrawImage(piece, op)
+	}
+
+	rotated(body, step, math.Pi/2)
+	rotated(tail, step*2, -math.Pi/2)
+
+	headOp := &ebiten.DrawImageOptions{}
+	headOp.GeoM.Scale(-1, 1)
+	headOp.GeoM.Translate(tile, 0)
+	dst.DrawImage(head, headOp)
+
+	return dst
 }
 
 func main() {
 	ebiten.SetWindowSize(game.ScreenWidth, game.ScreenHeight)
 	ebiten.SetWindowTitle("Gopher Run")
-	g := game.New(gopherImage, dirtImage, grassTileImage, eagleImage)
+	g := game.New(gopherImage, dirtImage, grassTileImage, eagleImage, snakeImage)
 	if err := ebiten.RunGame(g); err != nil {
 		log.Fatal(err)
 	}

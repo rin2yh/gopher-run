@@ -21,5 +21,6 @@ type Assets struct {
 	Dirt       *ebiten.Image
 	GrassTile  *ebiten.Image
 	Eagle      *ebiten.Image
+	Snake      *ebiten.Image
 	FontSource *ebitentext.GoTextFaceSource
 }

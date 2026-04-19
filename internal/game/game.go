@@ -25,12 +25,12 @@ type Game struct {
 	assets *scene.Assets
 }
 
-func New(gopherImg, dirtImg, grassTileImg, eagleImg *ebiten.Image) *Game {
+func New(gopherImg, dirtImg, grassTileImg, eagleImg, snakeImg *ebiten.Image) *Game {
 	src, err := ebitentext.NewGoTextFaceSource(bytes.NewReader(gobold.TTF))
 	if err != nil {
 		log.Fatal("failed to load gobold font:", err)
 	}
-	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg, Eagle: eagleImg, FontSource: src}
+	assets := &scene.Assets{Gopher: gopherImg, Dirt: dirtImg, GrassTile: grassTileImg, Eagle: eagleImg, Snake: snakeImg, FontSource: src}
 	h := input.NewHandler()
 	return &Game{mode: scene.NewTitleScene(assets, h), input: h, assets: assets}
 }

@@ -15,26 +15,27 @@ const (
 	eagleCycleFrames = 120
 )
 
-type eagle struct {
+type Eagle struct {
 	x      float64
 	y      float64
 	frames int
+	img    *ebiten.Image
 	drawOp ebiten.DrawImageOptions
 }
 
-func NewEagle() *eagle {
-	return NewEagleAt(EagleSpawnX)
+func NewEagle(img *ebiten.Image) *Eagle {
+	return NewEagleAt(EagleSpawnX, img)
 }
 
-func NewEagleAt(x float64) *eagle {
-	return &eagle{x: x, y: eagleSpawnY}
+func NewEagleAt(x float64, img *ebiten.Image) *Eagle {
+	return &Eagle{x: x, y: eagleSpawnY, img: img}
 }
 
-func (e *eagle) X() float64 {
+func (e *Eagle) X() float64 {
 	return e.x
 }
 
-func (e *eagle) Move() {
+func (e *Eagle) Move() {
 	e.x -= EagleSpeedX
 	e.frames++
 	if e.frames < eagleDiveFrames {
@@ -47,13 +48,12 @@ func (e *eagle) Move() {
 	}
 }
 
-func (e *eagle) Hit(px, py, pw, ph float64) bool {
-	return px < e.x+eagleW && px+pw > e.x &&
-		py < e.y+eagleH && py+ph > e.y
+func (e *Eagle) Hit(px, py, pw, ph float64, _ bool) bool {
+	return aabbOverlap(px, py, pw, ph, e.x, e.y, eagleW, eagleH)
 }
 
-func (e *eagle) Draw(screen *ebiten.Image, img *ebiten.Image) {
+func (e *Eagle) Draw(screen *ebiten.Image) {
 	e.drawOp.GeoM.Reset()
 	e.drawOp.GeoM.Translate(e.x, e.y)
-	screen.DrawImage(img, &e.drawOp)
+	screen.DrawImage(e.img, &e.drawOp)
 }

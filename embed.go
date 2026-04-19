@@ -10,3 +10,6 @@ var tilesPng []byte
 
 //go:embed assets/eagle.png
 var eaglePng []byte
+
+//go:embed assets/snake.png
+var snakePng []byte

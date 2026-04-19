@@ -3,7 +3,7 @@ package enemy
 import "testing"
 
 func TestNewEagle(t *testing.T) {
-	e := NewEagle()
+	e := NewEagle(nil)
 	if e.x != EagleSpawnX {
 		t.Errorf("x = %v, want %v", e.x, EagleSpawnX)
 	}
@@ -13,7 +13,7 @@ func TestNewEagle(t *testing.T) {
 }
 
 func TestNewEagleAt(t *testing.T) {
-	e := NewEagleAt(1000)
+	e := NewEagleAt(1000, nil)
 	if e.x != 1000 {
 		t.Errorf("x = %v, want 1000", e.x)
 	}
@@ -23,14 +23,14 @@ func TestNewEagleAt(t *testing.T) {
 }
 
 func TestEagleX(t *testing.T) {
-	e := NewEagleAt(500)
+	e := NewEagleAt(500, nil)
 	if e.X() != 500 {
 		t.Errorf("X() = %v, want 500", e.X())
 	}
 }
 
 func TestEagleMove_HorizontalSpeed(t *testing.T) {
-	e := NewEagleAt(200)
+	e := NewEagleAt(200, nil)
 	e.Move()
 	if e.x != 200-EagleSpeedX {
 		t.Errorf("x after 1 move = %v, want %v", e.x, 200-EagleSpeedX)
@@ -38,7 +38,7 @@ func TestEagleMove_HorizontalSpeed(t *testing.T) {
 }
 
 func TestEagleMove_DivePhase(t *testing.T) {
-	e := NewEagleAt(200)
+	e := NewEagleAt(200, nil)
 	// frames 1..eagleDiveFrames-1: y increases
 	for range eagleDiveFrames - 1 {
 		prev := e.y
@@ -50,7 +50,7 @@ func TestEagleMove_DivePhase(t *testing.T) {
 }
 
 func TestEagleMove_AscentPhase(t *testing.T) {
-	e := NewEagleAt(200)
+	e := NewEagleAt(200, nil)
 	// advance to ascent phase
 	for range eagleDiveFrames {
 		e.Move()
@@ -63,7 +63,7 @@ func TestEagleMove_AscentPhase(t *testing.T) {
 }
 
 func TestEagleMove_CycleReset(t *testing.T) {
-	e := NewEagleAt(200)
+	e := NewEagleAt(200, nil)
 	// eagleCycleFrames+1 moves triggers frames reset to 0
 	for range eagleCycleFrames + 1 {
 		e.Move()
@@ -74,40 +74,40 @@ func TestEagleMove_CycleReset(t *testing.T) {
 }
 
 func TestEagleHit_Overlap(t *testing.T) {
-	e := &eagle{x: 100, y: 100}
-	if !e.Hit(100, 100, 60, 75) {
+	e := &Eagle{x: 100, y: 100}
+	if !e.Hit(100, 100, 60, 75, false) {
 		t.Error("expected hit when player overlaps eagle")
 	}
 }
 
 func TestEagleHit_PlayerLeft(t *testing.T) {
-	e := &eagle{x: 100, y: 100}
+	e := &Eagle{x: 100, y: 100}
 	// player right edge exactly at eagle left edge: px+pw == e.x → no hit
-	if e.Hit(40, 100, 60, 75) {
+	if e.Hit(40, 100, 60, 75, false) {
 		t.Error("expected no hit when player right edge meets eagle left edge")
 	}
 }
 
 func TestEagleHit_PlayerRight(t *testing.T) {
-	e := &eagle{x: 100, y: 100}
+	e := &Eagle{x: 100, y: 100}
 	// player left edge exactly at eagle right edge: px == e.x+eagleW → no hit
-	if e.Hit(100+eagleW, 100, 60, 75) {
+	if e.Hit(100+eagleW, 100, 60, 75, false) {
 		t.Error("expected no hit when player left edge meets eagle right edge")
 	}
 }
 
 func TestEagleHit_PlayerAbove(t *testing.T) {
-	e := &eagle{x: 100, y: 100}
+	e := &Eagle{x: 100, y: 100}
 	// player bottom edge exactly at eagle top edge: py+ph == e.y → no hit
-	if e.Hit(100, 50, 60, 50) {
+	if e.Hit(100, 50, 60, 50, false) {
 		t.Error("expected no hit when player bottom edge meets eagle top edge")
 	}
 }
 
 func TestEagleHit_PlayerBelow(t *testing.T) {
-	e := &eagle{x: 100, y: 100}
+	e := &Eagle{x: 100, y: 100}
 	// player top edge exactly at eagle bottom edge: py == e.y+eagleH → no hit
-	if e.Hit(100, 100+eagleH, 60, 75) {
+	if e.Hit(100, 100+eagleH, 60, 75, false) {
 		t.Error("expected no hit when player top edge meets eagle bottom edge")
 	}
 }
