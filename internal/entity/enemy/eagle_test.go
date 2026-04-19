@@ -31,7 +31,7 @@ func TestEagleX(t *testing.T) {
 
 func TestEagleMove_HorizontalSpeed(t *testing.T) {
 	e := NewEagleAt(200, nil)
-	e.Move()
+	e.Move(groundAlways, 0)
 	if e.x != 200-EagleSpeedX {
 		t.Errorf("x after 1 move = %v, want %v", e.x, 200-EagleSpeedX)
 	}
@@ -42,7 +42,7 @@ func TestEagleMove_DivePhase(t *testing.T) {
 	// frames 1..eagleDiveFrames-1: y increases
 	for range eagleDiveFrames - 1 {
 		prev := e.y
-		e.Move()
+		e.Move(groundAlways, 0)
 		if e.y <= prev {
 			t.Errorf("y should increase during dive, got %v <= %v", e.y, prev)
 		}
@@ -53,10 +53,10 @@ func TestEagleMove_AscentPhase(t *testing.T) {
 	e := NewEagleAt(200, nil)
 	// advance to ascent phase
 	for range eagleDiveFrames {
-		e.Move()
+		e.Move(groundAlways, 0)
 	}
 	yAtTransition := e.y
-	e.Move() // first ascent frame
+	e.Move(groundAlways, 0) // first ascent frame
 	if e.y >= yAtTransition {
 		t.Errorf("y should decrease in ascent phase, got %v >= %v", e.y, yAtTransition)
 	}
@@ -66,7 +66,7 @@ func TestEagleMove_CycleReset(t *testing.T) {
 	e := NewEagleAt(200, nil)
 	// eagleCycleFrames+1 moves triggers frames reset to 0
 	for range eagleCycleFrames + 1 {
-		e.Move()
+		e.Move(groundAlways, 0)
 	}
 	if e.frames != 0 {
 		t.Errorf("frames after full cycle = %v, want 0", e.frames)

@@ -1,6 +1,10 @@
 package enemy
 
-import "github.com/hajimehoshi/ebiten/v2"
+import (
+	"github.com/hajimehoshi/ebiten/v2"
+
+	"gopher-run/internal/entity/popup"
+)
 
 const (
 	eagleW = 55.0
@@ -35,7 +39,7 @@ func (e *Eagle) X() float64 {
 	return e.x
 }
 
-func (e *Eagle) Move() {
+func (e *Eagle) Move(_ GroundChecker, _ int) {
 	e.x -= EagleSpeedX
 	e.frames++
 	if e.frames < eagleDiveFrames {
@@ -50,6 +54,19 @@ func (e *Eagle) Move() {
 
 func (e *Eagle) Hit(px, py, pw, ph float64, _ bool) bool {
 	return aabbOverlap(px, py, pw, ph, e.x, e.y, eagleW, eagleH)
+}
+
+func (e *Eagle) IsOffScreen(_ int) bool {
+	return e.x < 0
+}
+
+func (e *Eagle) OnDodged(obs DodgeObserver, ctx DodgeContext) {
+	obs.NoticeEagleDodged()
+	obs.SpawnPopup(popup.NewEagleDodge(ctx.PopupX, ctx.PopupY, ctx.FaceLarge))
+}
+
+func (e *Eagle) Respawn(svc RespawnService) Enemy {
+	return NewEagleAt(svc.SafeEagleSpawnX(EagleSpawnX), svc.EagleImage())
 }
 
 func (e *Eagle) Draw(screen *ebiten.Image) {

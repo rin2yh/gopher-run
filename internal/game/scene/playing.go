@@ -52,9 +52,9 @@ func NewPlayingScene(assets *Assets, h *input.Handler) *PlayingScene {
 	s.popupFaceSmall = &ebitentext.GoTextFace{Source: assets.FontSource, Size: popup.SmallFontSize}
 	s.popupFaceLarge = &ebitentext.GoTextFace{Source: assets.FontSource, Size: popup.LargeFontSize}
 	const eagleSpacing = 1200.0
-	s.enemies = append(s.enemies, enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX), assets.Eagle))
-	s.enemies = append(s.enemies, enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX+eagleSpacing), assets.Eagle))
-	s.enemies = append(s.enemies, enemy.NewSnakeAt(s.safeSnakeSpawnX(enemy.SnakeSpawnX), assets.Snake))
+	s.enemies = append(s.enemies, enemy.NewEagleAt(s.SafeEagleSpawnX(enemy.EagleSpawnX), assets.Eagle))
+	s.enemies = append(s.enemies, enemy.NewEagleAt(s.SafeEagleSpawnX(enemy.EagleSpawnX+eagleSpacing), assets.Eagle))
+	s.enemies = append(s.enemies, enemy.NewSnakeAt(s.SafeSnakeSpawnX(enemy.SnakeSpawnX), assets.Snake))
 	return s
 }
 
@@ -89,7 +89,7 @@ func arrivalsOf[T enemy.Enemy](enemies []enemy.Enemy, speed float64) []float64 {
 	return arrivals
 }
 
-func (s *PlayingScene) safeSnakeSpawnX(fromX float64) float64 {
+func (s *PlayingScene) SafeSnakeSpawnX(fromX float64) float64 {
 	pScreen := float64(player.ScreenX)
 	arrival := (fromX - pScreen) / enemy.SnakeSpeedX
 	arrival = shiftPastArrivals(arrival, arrivalsOf[*enemy.Eagle](s.enemies, enemy.EagleSpeedX), separationFrames)
@@ -101,7 +101,7 @@ func (s *PlayingScene) safeSnakeSpawnX(fromX float64) float64 {
 }
 
 // Eagle はプレイヤー位置で穴と衝突すると回避不可のため、Snake 到達シフトを挟んだ前後で穴を避ける。
-func (s *PlayingScene) safeEagleSpawnX(fromX float64) float64 {
+func (s *PlayingScene) SafeEagleSpawnX(fromX float64) float64 {
 	pScreen := float64(player.ScreenX)
 	spawnX := fromX
 
@@ -123,6 +123,17 @@ func (s *PlayingScene) safeEagleSpawnX(fromX float64) float64 {
 	}
 	return spawnX
 }
+
+func (s *PlayingScene) NoticeEagleDodged() {
+	s.scorer.NoticeEagleDodged()
+}
+
+func (s *PlayingScene) SpawnPopup(p popup.Popup) {
+	s.popups = popup.Spawn(s.popups, p)
+}
+
+func (s *PlayingScene) EagleImage() *ebiten.Image { return s.assets.Eagle }
+func (s *PlayingScene) SnakeImage() *ebiten.Image { return s.assets.Snake }
 
 func (s *PlayingScene) Update() Scene {
 	s.cameraX += cameraSpeedPerFrame
@@ -150,19 +161,17 @@ func (s *PlayingScene) Update() Scene {
 	s.popups = popup.Update(s.popups)
 
 	for i, e := range s.enemies {
-		e.Move()
+		e.Move(s.world, s.cameraX)
 		if e.Hit(float64(player.ScreenX), float64(s.player.ScreenY()), player.Width, player.Height, digging) {
 			return NewGameOverScene(s.assets, s.input, s.scorer.Value(), s.world, s.player, s.cameraX)
 		}
-		if e.X() < 0 {
-			switch e.(type) {
-			case *enemy.Eagle:
-				s.scorer.NoticeEagleDodged()
-				s.popups = popup.Spawn(s.popups, popup.NewEagleDodge(popupSpawnX, float64(s.player.ScreenY()), s.popupFaceLarge))
-				s.enemies[i] = enemy.NewEagleAt(s.safeEagleSpawnX(enemy.EagleSpawnX), s.assets.Eagle)
-			case *enemy.Snake:
-				s.enemies[i] = enemy.NewSnakeAt(s.safeSnakeSpawnX(enemy.SnakeSpawnX), s.assets.Snake)
-			}
+		if e.IsOffScreen(ScreenHeight) {
+			e.OnDodged(s, enemy.DodgeContext{
+				PopupX:    popupSpawnX,
+				PopupY:    float64(s.player.ScreenY()),
+				FaceLarge: s.popupFaceLarge,
+			})
+			s.enemies[i] = e.Respawn(s)
 		}
 	}
 
